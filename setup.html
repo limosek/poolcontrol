@@ -1,11 +1,13 @@
-<script language="JavaScript">
-	json = getElementById("cfg").value
-			 getElementById("cfg").value = JSON.stringify(jsObj, null, "\t");
-</script>
 
-<h3>Setup page</h3>
-
-<form method="POST">
-	<textarea id=cfg name="cfg" rows="20" cols="30">{cfg}</textarea>
+<form method="POST" _enctype="multipart/form-data">
+	<textarea id="cfgtext" name="cfg" rows="30" cols="80">{cfg}</textarea>
 	<input type="submit" name=submit value=submit>
 </form>
+
+<script language="JavaScript">
+	function tidy() {{
+	cfg = document.getElementById("cfgtext");
+	json = JSON.parse(cfg.value)
+	cfg.value = JSON.stringify(json, null, "\t");
+	}}
+</script>

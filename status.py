@@ -1,6 +1,9 @@
 
-import m5stack
-import m5ui
+try:
+	import m5stack
+	import m5ui
+except Exception:
+	pass
 
 class Status:
 	@staticmethod
@@ -13,7 +16,6 @@ class Status:
 		Status.iplabel = m5ui.M5TextBox(0, 66, "", m5stack.lcd.FONT_Ubuntu, 0xffffff, rotate=0)
 		m5stack.lcd.font(m5stack.lcd.FONT_Ubuntu, fixedwidth=True)
 		Status.statusheader.setText("FaWiHtSeLe")
-		Status.loops = 0
 		Status.flags = {
 			"inFactoryreset": " ",
 			"inSensors": " ",
@@ -21,6 +23,7 @@ class Status:
 			"wifiConnected": " ",
 			"inLeds": " "
 		}
+		Status.inMeasure = "scan"
 		Status.log("Init")
 
 	@staticmethod

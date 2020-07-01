@@ -1,5 +1,10 @@
 
-import ujson
+try:
+	import ujson
+except Exception:
+	import json as ujson
+
+import sys
 from status import Status
 
 class Config:
@@ -23,29 +28,49 @@ class Config:
 				"offset": 3600*2
 			},
 			"stripes": {
-				"1": {
-					"mode": "static",
+				1: {
+					"mode": "random",
 					"pin": 26,
-					"size": 7,
-					"color": (100, 0, 0)
+					"size": 7
+				}
+			},
+			"relays": {
+				1: {
+					"pin": 32,
+					"condition": "{s1}>30} and {s2}<40 and {hod}>10 and {hod}<18"
 				}
 			}
 		}
 	@staticmethod
 	def init():
 		try:
-			from _settings import DATA
-			Config.data = DATA
+			s = open("_settings.py", "r")
+			if s:
+				Config.data = ujson.loads(s.read(32768))
+			for i in Config.data["stripes"].keys():
+				stripedata = Config.data["stripes"][i]
+				if "leds" in stripedata:
+					for j in stripedata["leds"]:
+						leddata = stripedata["leds"][j]
+						del stripedata["leds"][j]
+						stripedata["leds"][int(j)] = leddata
+				del Config.data["stripes"][i]
+				Config.data["stripes"][int(i)] = stripedata
+			for i in Config.data["sensors"]["roms"].keys():
+				romdata = Config.data["sensors"]["roms"][i]
+				del Config.data["sensors"]["roms"][i]
+				Config.data["sensors"]["roms"][int(i)] = romdata
 			return True
-		except Exception:
+		except Exception as e:
 			Config.data = Config.defaults
+			Status.log("Cannot read config file")
+			sys.print_exception(e)
 			return False
 
 	@staticmethod
 	def write():
 		s = open("_settings.py", "w")
 		if s:
-			s.write("DATA=")
 			ujson.dump(Config.data, s)
 			s.close()
 		else:
@@ -56,6 +81,11 @@ class Config:
 		Status.log("Factory reset", inFactoryreset="!")
 		Config.data = Config.defaults
 		Config.write()
+
+	@staticmethod
+	def load(json):
+		Status.log("Loading settings")
+		Config.data = json
 
 	@staticmethod
 	def setParam(section, subsection, param, value):
@@ -82,5 +112,9 @@ class Config:
 		return None
 
 	@staticmethod
-	def getAll():
-		return ujson.dumps(Config.data)
+	def getAll(leds):
+		data = Config.data
+		for s in Config.data["stripes"].keys():
+			data["stripes"][s] = Config.data["stripes"][s]
+			data["stripes"][s]["leds"] = leds.getData(s)
+		return ujson.dumps(data)

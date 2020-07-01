@@ -1,15 +1,18 @@
 
 import machine
 import onewire
+import ubinascii
 from config import Config
 from status import Status
-import sys
 
 class Sensors():
 	@staticmethod
 	def init():
-		Sensors.data = Config.getParam("sensors")
-		pin  = Sensors.data["onewire_pin"]
+		sensors = Config.getParam("sensors")
+		pin = sensors["onewire_pin"]
+		Sensors.data = { "roms": {} }
+		for s in sensors["roms"].keys():
+			Sensors.addSensor(s, sensors["roms"][s]["rom"])
 		Sensors.ow = onewire.OneWire(machine.Pin(pin))
 		Sensors.ds = onewire.DS18X20(Sensors.ow)
 		Status.log("Init sensors on pin %s" % pin)
@@ -36,46 +39,61 @@ class Sensors():
 			romid = "".join("%02x" % i for i in rom)
 			found = False
 			for s in Sensors.data["roms"].keys():
-				if romid==Sensors.data["roms"][s]["romid"]:
+				if romid==Sensors.data["roms"][s]["rom"]:
 					found = True
 					continue
 			if not found:
 					nid = Sensors.getNextId()
-					Sensors.addSensor(nid, rom, romid)
-					Status.log("Adding sensor %s[%s]" % (nid, Sensors.data["roms"][nid]["romid"]))
+					Sensors.addSensor(nid, romid)
+					Status.log("Adding sensor %s[%s]" % (nid, Sensors.data["roms"][nid]["rom"]))
 		for s in Sensors.data["roms"].keys():
 			if (Status.loops-Sensors.data["roms"][s]["last"])>60:
-				Status.log("Removing stale sensor %s[%s]" % (s, Sensors.data["roms"][s]["romid"]))
+				Status.log("Removing stale sensor %s[%s]" % (s, Sensors.data["roms"][s]["rom"]))
 				Sensors.removeSensor(s)
 
-	def addSensor(id, rom, romid):
-		Sensors.data["roms"][id] = {"T": None, "last": Status.loops, "rom": rom, "romid": romid}
+	@staticmethod
+	def getValue(id):
+		if id in Sensors.data["roms"]:
+			return Sensors.data["roms"][id]["T"]
+		else:
+			return None
+
+	def addSensor(id, romid):
+		Sensors.data["roms"][id] = {"T": None, "last": Status.loops, "rom": romid}
+		Config.data["sensors"]["roms"][id] = {"name": None, "rom": romid}
 		Status.log(inSensors=len(Sensors.data["roms"]))
 
 	def removeSensor(id):
 		del Sensors.data["roms"][id]
+		del Config.data["sensors"]["roms"][id]
 		Status.log(inSensors=len(Sensors.data["roms"]))
 
 	def startMeassure(id="all"):
 		Status.log(inSensors="M")
 		if id=="all":
-			for s in Sensors.data["roms"].keys():
-				Sensors.ds.start_conversion(Sensors.data["roms"][s]["rom"])
+			for id in Sensors.data["roms"].keys():
+				Sensors.startMeassure(id)
+			return
 		else:
-			Sensors.ds.start_conversion(Sensors.data["roms"][id]["rom"])
+			rom = ubinascii.unhexlify(Sensors.data["roms"][id]["rom"])
+			Sensors.ds.start_conversion(rom)
 		Status.log(inSensors=len(Sensors.data["roms"]))
 
 	def readTemp(id="all"):
 		Status.log(inSensors="R")
 		if id=="all":
 			for s in Sensors.data["roms"].keys():
-				t = Sensors.ds.read_temp_async(Sensors.data["roms"][s]["rom"])
-				if t:
-					Sensors.data["roms"][s]["T"] = t
-					Sensors.data["roms"][s]["last"] = Status.loops
+				Sensors.readTemp(s)
 		else:
-			t = Sensors.ds.read_temp_async(Sensors.data["roms"][id]["rom"])
-			if t:
+			rom = ubinascii.unhexlify(Sensors.data["roms"][id]["rom"])
+			try:
+				t = Sensors.ds.read_temp_async(rom)
+			except Exception:
+				t = False
+			if t and t>-100 and t<150:
 				Sensors.data["roms"][id]["T"] = t
 				Sensors.data["roms"][id]["last"] = Status.loops
+				print("T[%s]=%s" % (id, t))
+			else:
+				Status.log(inSensors="!")
 		Status.log(inSensors=len(Sensors.data["roms"]))
