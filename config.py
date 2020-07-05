@@ -15,12 +15,12 @@ class Config:
 				},
 			},
 			"network": {
-				"mode": "Client",
-				"ssid": "SPA",
-				"wpa_password": "HtecVjA!3",
-				"ip": "DHCP",
+				"mode": "AP",
+				"ssid": "PoolControl",
+				"wpa_password": "P00LC0ntr0l",
+				"ip": "192.168.4.1",
 				"gw": "DHCP",
-				"mask": "DHCP",
+				"mask": "255.255.255.0",
 				"dns": "DHCP"
 			},
 			"time": {
